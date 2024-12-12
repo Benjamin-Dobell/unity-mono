@@ -6552,7 +6552,7 @@ namespace System.Windows.Forms {
 		private ToolTip ToolTipWindow {
 			get {
 				if (tooltip_window == null)
-					tooltip_window = new ToolTip ();
+					tooltip_window = new ToolTip (this);
 
 				return tooltip_window;
 			}

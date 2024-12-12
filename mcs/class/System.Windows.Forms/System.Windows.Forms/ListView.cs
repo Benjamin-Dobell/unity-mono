@@ -271,8 +271,6 @@ namespace System.Windows.Forms
 			items_location = new Point [16];
 			items_matrix_location = new ItemMatrixLocation [16];
 			reordered_items_indices = new int [16];
-			item_tooltip = new ToolTip ();
-			item_tooltip.Active = false;
 			insertion_mark = new ListViewInsertionMark (this);
 
 			InternalBorderStyle = BorderStyle.Fixed3D;
@@ -316,7 +314,7 @@ namespace System.Windows.Forms
 		}
 		#endregion	// Public Constructors
 
-		#region Private Internal Properties
+		#region Private & Internal Properties
 		internal Size CheckBoxSize {
 			get {
 				if (this.check_boxes) {
@@ -375,6 +373,16 @@ namespace System.Windows.Forms
 		internal ColumnHeader EnteredColumnHeader {
 			get {
 				return header_control.EnteredColumnHeader;
+			}
+		}
+
+		private ToolTip ToolTipWindow {
+			get {
+				if (item_tooltip == null) {
+					item_tooltip = new ToolTip(this);
+					item_tooltip.Active = false;
+				}
+				return item_tooltip;
 			}
 		}
 		#endregion	// Private Internal Properties
@@ -815,7 +823,7 @@ namespace System.Windows.Forms
 			}
 			set {
 				show_item_tooltips = value;
-				item_tooltip.Active = false;
+				ToolTipWindow.Active = false;
 			}
 		}
 
@@ -2779,11 +2787,11 @@ namespace System.Windows.Forms
 
 				if (owner.ShowItemToolTips) {
 					if (item == null) {
-						owner.item_tooltip.Active = false;
+						owner.ToolTipWindow.Active = false;
 						prev_tooltip_item = null;
 					} else if (item != prev_tooltip_item && item.ToolTipText.Length > 0) {
-						owner.item_tooltip.Active = true;
-						owner.item_tooltip.SetToolTip (owner, item.ToolTipText);
+						owner.ToolTipWindow.Active = true;
+						owner.ToolTipWindow.SetToolTip (owner, item.ToolTipText);
 						prev_tooltip_item = item;
 					}
 				}

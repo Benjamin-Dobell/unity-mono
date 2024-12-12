@@ -1509,7 +1509,7 @@ namespace System.Windows.Forms {
 			}
 
 			if (tooltip == null) {
-				tooltip = new ToolTip ();
+				tooltip = new ToolTip (this);
 				tooltip_timer = new Timer ();
 				tooltip_timer.Tick += new EventHandler (ToolTipTimerTick);
 			}

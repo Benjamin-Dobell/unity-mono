@@ -899,7 +899,7 @@ namespace System.Windows.Forms
 				return;
 
 			if (tip_window == null)
-				tip_window = new ToolTip ();
+				tip_window = new ToolTip (this);
 
 			ToolBarItem item = ItemAtPoint (PointToClient (Control.MousePosition));
 			current_item = item;

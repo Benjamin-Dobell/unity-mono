@@ -75,7 +75,7 @@ namespace System.Windows.Forms {
 			#endregion	// ToolTipWindow Class Local Variables
 			
 			#region ToolTipWindow Class Constructor
-			internal ToolTipWindow() {
+			internal ToolTipWindow(Control owner = null) {
 				Visible = false;
 				Size = new Size(100, 20);
 				ForeColor = ThemeEngine.Current.ColorInfoText;
@@ -94,8 +94,14 @@ namespace System.Windows.Forms {
 				} else
 					SetStyle (ControlStyles.Opaque, true);
 
-				SetTopLevel (true);
+				if (owner == null) {
+					SetTopLevel (true);
+				} else {
+					SetTopLevel (false);
+					owner.Controls.Add(this);
+				}
 			}
+
 
 			#endregion	// ToolTipWindow Class Constructor
 
@@ -288,7 +294,7 @@ namespace System.Windows.Forms {
 		#endregion	// ToolTipWindow Class
 
 		#region Public Constructors & Destructors
-		public ToolTip() {
+		public ToolTip(Control owner = null) {
 
 			// Defaults from MS
 			is_active = true;
@@ -307,7 +313,7 @@ namespace System.Windows.Forms {
 			tooltip_strings = new Hashtable(5);
 			controls = new ArrayList(5);
 
-			tooltip_window = new ToolTipWindow();
+			tooltip_window = new ToolTipWindow(owner);
 			tooltip_window.MouseLeave += new EventHandler(control_MouseLeave);
 			tooltip_window.Draw += new DrawToolTipEventHandler (tooltip_window_Draw);
 			tooltip_window.Popup += new PopupEventHandler (tooltip_window_Popup);

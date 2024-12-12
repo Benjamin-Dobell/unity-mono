@@ -1072,7 +1072,7 @@ namespace System.Windows.Forms {
 			}
 
 			if (tooltip == null)
-				tooltip = new ToolTip.ToolTipWindow ();
+				tooltip = new ToolTip.ToolTipWindow (form);
 			else if (tooltip.Text == text && tooltip.Visible)
 				return;
 			else if (tooltip.Visible)

@@ -2296,10 +2296,6 @@ namespace System.Windows.Forms
 			
 			contextMenu = new ContextMenu ();
 			
-			toolTip = new ToolTip ();
-			toolTip.InitialDelay = 300;
-			toolTip.ReshowDelay = 0; 
-			
 			// contextMenu
 			
 			// View menu item
@@ -2456,6 +2452,18 @@ namespace System.Windows.Forms
 			
 			get {
 				return selectedFilesString;
+			}
+		}
+
+		private ToolTip ToolTipWindow {
+			get {
+				if (toolTip == null) {
+					toolTip = new ToolTip(this);
+					toolTip.InitialDelay = 300;
+					toolTip.ReshowDelay = 0;
+				}
+
+				return toolTip;
 			}
 		}
 		
@@ -2891,8 +2899,8 @@ namespace System.Windows.Forms
 				if (currentItemIndex != oldItemIndexForToolTip) {
 					oldItemIndexForToolTip = currentItemIndex;
 					
-					if (toolTip != null && toolTip.Active)
-						toolTip.Active = false;
+					if (ToolTipWindow.Active)
+						ToolTipWindow.Active = false;
 					
 					FSEntry fsEntry = item.FSEntry;
 					
@@ -2907,12 +2915,12 @@ namespace System.Windows.Forms
 					else
 						output = Locale.GetText("File: {0}", fsEntry.FullName);
 					
-					toolTip.SetToolTip (this, output);	
+					ToolTipWindow.SetToolTip (this, output);
 					
-					toolTip.Active = true;
+					ToolTipWindow.Active = true;
 				}
 			} else
-				toolTip.Active = false;
+				ToolTipWindow.Active = false;
 			
 			base.OnMouseMove (e);
 		}
