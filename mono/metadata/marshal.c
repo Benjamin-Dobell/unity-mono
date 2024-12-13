@@ -407,13 +407,11 @@ delegate_hash_table_add (MonoDelegateHandle d)
 			g_hash_table_insert (delegate_hash_table, delegate_trampoline, gchandle);
 		}
 	} else {
-		if (g_hash_table_lookup (delegate_hash_table, delegate_trampoline) == NULL) {
-			MonoGCHandle gchandle = mono_gchandle_from_handle (MONO_HANDLE_CAST (MonoObject, d), FALSE);
-			// This delegate will always be associated with its delegate_trampoline in the table.
-			// We don't free this delegate object because it is too expensive to keep track of these
-			// pairs and avoid races with the delegate finalization.
-			g_hash_table_insert (delegate_hash_table, delegate_trampoline, gchandle);
-		}
+		MonoGCHandle gchandle = mono_gchandle_from_handle (MONO_HANDLE_CAST (MonoObject, d), FALSE);
+		// If a delegate already exists with a matching function pointer we assume it's old as
+		// we've just jitted a new one and replace it. This is preferred to continuing to run
+		// with stale data in the map that could be used later.
+		g_hash_table_insert (delegate_hash_table, delegate_trampoline, gchandle);
 	}
 	mono_marshal_unlock ();
 }
