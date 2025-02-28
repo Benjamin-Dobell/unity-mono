@@ -6545,6 +6545,10 @@ do_invoke_method (DebuggerTlsData *tls, Buffer *buf, InvokeData *invoke, guint8 
 			PRINT_DEBUG_MSG (1, "[%p] Error: Interface method invoked without this argument.\n", (gpointer) (gsize) mono_native_thread_id_get ());
 			return ERR_INVALID_ARGUMENT;
 		}
+		if (!mono_object_isinst_checked(this_arg, m->klass, error)) {
+			PRINT_DEBUG_MSG (1, "[%p] Error: Interface method invoked on object that doesn't implement the interface.\n", (gpointer) (gsize) mono_native_thread_id_get ());
+			return ERR_INVALID_ARGUMENT;
+		}
 		m = mono_object_get_virtual_method_internal (this_arg, m);
 		/* Transform this to the format the rest of the code expects it to be */
 		if (m_class_is_valuetype (m->klass)) {
@@ -6554,6 +6558,10 @@ do_invoke_method (DebuggerTlsData *tls, Buffer *buf, InvokeData *invoke, guint8 
 	} else if ((m->flags & METHOD_ATTRIBUTE_VIRTUAL) && !m_class_is_valuetype (m->klass) && invoke->flags & INVOKE_FLAG_VIRTUAL) {
 		if (!this_arg) {
 			PRINT_DEBUG_MSG (1, "[%p] Error: invoke with INVOKE_FLAG_VIRTUAL flag set without this argument.\n", (gpointer) (gsize) mono_native_thread_id_get ());
+			return ERR_INVALID_ARGUMENT;
+		}
+		if (!mono_object_isinst_checked(this_arg, m->klass, error)) {
+			PRINT_DEBUG_MSG (1, "[%p] Error: invoke with INVOKE_FLAG_VIRTUAL flag on object that object that doesn't implement the method.\n", (gpointer) (gsize) mono_native_thread_id_get ());
 			return ERR_INVALID_ARGUMENT;
 		}
 		m = mono_object_get_virtual_method_internal (this_arg, m);
