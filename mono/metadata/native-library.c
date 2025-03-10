@@ -1177,7 +1177,7 @@ legacy_probe_for_module_relative_directories (MonoImage *image, const char *file
 }
 
 static MonoDl *
-legacy_probe_for_module (MonoImage *image, const char *new_scope)
+legacy_probe_for_module (MonoImage *image, const char *new_scope, char **load_error)
 {
 	char *full_name, *file_name;
 	char *error_msg = NULL;
@@ -1202,7 +1202,8 @@ legacy_probe_for_module (MonoImage *image, const char *new_scope)
 
 	if (mono_get_find_plugin_callback ())
 	{
-		const char* unity_new_scope = mono_get_find_plugin_callback () (new_scope);
+		gboolean hasError = FALSE;
+		const char* unity_new_scope = mono_get_find_plugin_callback () (new_scope, &hasError);
 		if (unity_new_scope == NULL || !unity_new_scope[0])
 		{
 			mono_trace (G_LOG_LEVEL_WARNING, MONO_TRACE_DLLIMPORT,
@@ -1212,6 +1213,9 @@ legacy_probe_for_module (MonoImage *image, const char *new_scope)
 
 		else
 			new_scope = g_strdup (unity_new_scope);
+		
+		if (hasError)
+			*load_error = mono_dl_current_error_string ();
 	}
 
 	/*
@@ -1280,7 +1284,7 @@ legacy_probe_for_module (MonoImage *image, const char *new_scope)
 }
 
 static MonoDl *
-legacy_lookup_native_library (MonoImage *image, const char *scope)
+legacy_lookup_native_library (MonoImage *image, const char *scope, char **load_error)
 {
 	MonoDl *module = NULL;
 	gboolean cached = FALSE;
@@ -1294,7 +1298,7 @@ legacy_lookup_native_library (MonoImage *image, const char *scope)
 		cached = TRUE;
 
 	if (!module)
-		module = legacy_probe_for_module (image, scope);
+		module = legacy_probe_for_module (image, scope, load_error);
 
 	if (module && !cached) {
 		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_DLLIMPORT,
@@ -1330,6 +1334,7 @@ lookup_pinvoke_call_impl (MonoMethod *method, MonoLookupPInvokeStatus *status_ou
 	const char *orig_scope = NULL;
 	const char *new_scope = NULL;
 	char *error_msg = NULL;
+	char *load_error = NULL;
 	MonoDl *module = NULL;
 	gpointer addr = NULL;
 
@@ -1427,7 +1432,7 @@ retry_with_libcoreclr:
 		flags = 0;
 	module = netcore_lookup_native_library (alc, image, new_scope, flags);
 #else
-	module = legacy_lookup_native_library (image, new_scope);
+	module = legacy_lookup_native_library (image, new_scope, &load_error);
 #endif // ENABLE_NETCORE
 
 	if (!module) {
@@ -1436,7 +1441,14 @@ retry_with_libcoreclr:
 				new_scope);
 
 		status_out->err_code = LOOKUP_PINVOKE_ERR_NO_LIB;
-		status_out->err_arg = g_strdup (new_scope);
+		if (load_error != NULL && load_error[0])
+		{
+			status_out->err_arg = g_strdup(load_error);
+		}
+		else
+		{
+			status_out->err_arg = g_strdup(new_scope);
+		}
 		goto exit;
 	}
 
@@ -1463,6 +1475,7 @@ exit:
 	g_free ((char *)new_import);
 	g_free ((char *)new_scope);
 	g_free (error_msg);
+	g_free (load_error);
 	return addr;
 }
 
