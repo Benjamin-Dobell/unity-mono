@@ -1488,6 +1488,15 @@ fallback:
 }
 #endif
 
+#if defined (HAVE_FORK) 
+static void* fork_helper(void* data)
+{
+	pid_t* pid = (pid_t*)data;
+	*pid = fork();
+	return NULL;
+}
+#endif
+
 static gboolean
 process_create (const gunichar2 *appname, const gunichar2 *cmdline,
 	const gunichar2 *cwd, StartupHandles *startup_handles, MonoW32ProcessInfo *process_info)
@@ -1849,7 +1858,12 @@ process_create (const gunichar2 *appname, const gunichar2 *cmdline,
 		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_PROCESS, "%s: new process startup not synchronized. We may not notice if the newly created process exits immediately.", __func__);
 	}
 
-	switch (pid = fork ()) {
+#if defined(HOST_DARWIN) && defined(TARGET_AMD64)
+	mono_gc_invoke_with_gc_lock(fork_helper, &pid);
+#else
+	pid = fork();
+#endif
+	switch (pid) {
 	case -1: /* Error */ {
 		mono_w32error_set_last (ERROR_OUTOFMEMORY);
 		ret = FALSE;
