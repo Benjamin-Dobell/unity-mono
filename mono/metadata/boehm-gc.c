@@ -1944,6 +1944,43 @@ mono_gchandle_is_in_domain_internal (MonoGCHandle gchandle, MonoDomain *domain)
 }
 
 /**
+ * mono_gchandle_is_in_domain_internal_lock_free:
+ * \param gchandle a GCHandle's handle.
+ * \param domain An application domain.
+ * 
+ * Lock free version of \c mono_gchandle_is_in_domain_internal. To be used only if the caller
+ * already has the handle lock.
+ * 
+ * \returns TRUE if the object wrapped by the \p gchandle belongs to the specific \p domain.
+ */
+gboolean
+mono_gchandle_is_in_domain_internal_lock_free(MonoGCHandle gchandle, MonoDomain* domain)
+{
+	guint slot = 0;
+	HandleData* handles = handle_lookup(gchandle, &slot);
+	gboolean result = FALSE;
+
+	if (handles->type >= HANDLE_TYPE_MAX)
+		return FALSE;
+
+	if (slot < handles->size && slot_occupied(handles, slot)) {
+		if (MONO_GC_HANDLE_TYPE_IS_WEAK(handles->type)) {
+			result = domain->domain_id == handles->domain_ids[slot];
+		}
+		else {
+			MonoObject* obj;
+			obj = (MonoObject*)handles->entries[slot];
+			if (obj == NULL)
+				result = TRUE;
+			else
+				result = domain == mono_object_domain(obj);
+		}
+	}
+
+	return result;
+}
+
+/**
  * mono_gchandle_free_internal:
  * \param gchandle a GCHandle's handle.
  *

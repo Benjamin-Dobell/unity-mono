@@ -369,6 +369,26 @@ delegate_hash_table_new (void) {
 	return g_hash_table_new (NULL, NULL);
 }
 
+static gboolean 
+domain_free_delegate (gpointer key, gpointer value, gpointer data)
+{
+	// We don't need to free the GCHandle here because the domain unload already did that for us
+	return mono_gchandle_is_in_domain_internal_lock_free ((MonoGCHandle)value, (MonoDomain*)data);
+}
+
+void
+delegate_hash_table_clear_domain (MonoDomain* domain)
+{
+	// This function is called when a domain is unloaded.
+	// We take the handle lock first to ensure we don't deadlock with any gc threads that might access marshalling apis
+	mono_gc_handle_lock ();
+	mono_marshal_lock ();
+	if (delegate_hash_table)
+		g_hash_table_foreach_remove (delegate_hash_table, domain_free_delegate, domain);
+	mono_marshal_unlock ();
+	mono_gc_handle_unlock ();
+}
+
 static void 
 delegate_hash_table_remove (MonoDelegate *d)
 {
@@ -407,11 +427,12 @@ delegate_hash_table_add (MonoDelegateHandle d)
 			g_hash_table_insert (delegate_hash_table, delegate_trampoline, gchandle);
 		}
 	} else {
-		MonoGCHandle gchandle = mono_gchandle_from_handle (MONO_HANDLE_CAST (MonoObject, d), FALSE);
-		// If a delegate already exists with a matching function pointer we assume it's old as
-		// we've just jitted a new one and replace it. This is preferred to continuing to run
-		// with stale data in the map that could be used later.
-		g_hash_table_insert (delegate_hash_table, delegate_trampoline, gchandle);
+		if (g_hash_table_lookup (delegate_hash_table, delegate_trampoline) == NULL) {
+			// We assume that if an entry already exists in the table that it is correct and from the
+			// current domain. The domain entries are removed from the table on domain unload.
+			MonoGCHandle gchandle = mono_gchandle_from_handle (MONO_HANDLE_CAST(MonoObject, d), FALSE);
+			g_hash_table_insert (delegate_hash_table, delegate_trampoline, gchandle);
+		}
 	}
 	mono_marshal_unlock ();
 }

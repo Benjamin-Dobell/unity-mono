@@ -2383,8 +2383,16 @@ void mono_gchandle_free_internal (MonoGCHandle gchandle);
 
 GCHandleType mono_gchandle_get_type_internal (MonoGCHandle gchandle);
 
+void
+mono_gc_handle_lock ();
+
+void
+mono_gc_handle_unlock ();
+
 /* make sure the gchandle was allocated for an object in domain */
-gboolean mono_gchandle_is_in_domain_internal(MonoGCHandle gchandle, MonoDomain* domain);
+gboolean mono_gchandle_is_in_domain_internal (MonoGCHandle gchandle, MonoDomain* domain);
+
+gboolean mono_gchandle_is_in_domain_internal_lock_free (MonoGCHandle gchandle, MonoDomain* domain);
 
 /* Reference queue support
  *
