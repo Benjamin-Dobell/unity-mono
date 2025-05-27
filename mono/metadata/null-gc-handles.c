@@ -382,6 +382,33 @@ mono_gchandle_is_in_domain_internal (guint32 gchandle, MonoDomain *domain)
 	return result;
 }
 
+gboolean
+mono_gchandle_is_in_domain_internal_lock_free (MonoGCHandle gchandle, MonoDomain* domain)
+{
+	guint slot = MONO_GC_HANDLE_SLOT (gchandle);
+	guint type = MONO_GC_HANDLE_TYPE (gchandle);
+	HandleData *handles = &gc_handles [type];
+	gboolean result = FALSE;
+
+	if (type >= HANDLE_TYPE_MAX)
+		return FALSE;
+
+	if (slot < handles->size && slot_occupied (handles, slot)) {
+		if (MONO_GC_HANDLE_TYPE_IS_WEAK (handles->type)) {
+			result = domain->domain_id == handles->domain_ids [slot];
+		} else {
+			MonoObject *obj;
+			obj = (MonoObject *)handles->entries [slot];
+			if (obj == NULL)
+				result = TRUE;
+			else
+				result = domain == mono_object_domain (obj);
+		}
+	}
+
+	return result;
+}
+
 GCHandleType
 mono_gchandle_get_type_internal (MonoGCHandle gchandle)
 {

@@ -381,12 +381,16 @@ delegate_hash_table_clear_domain (MonoDomain* domain)
 {
 	// This function is called when a domain is unloaded.
 	// We take the handle lock first to ensure we don't deadlock with any gc threads that might access marshalling apis
+#if HAVE_BOEHM_GC
 	mono_gc_handle_lock ();
+#endif
 	mono_marshal_lock ();
 	if (delegate_hash_table)
 		g_hash_table_foreach_remove (delegate_hash_table, domain_free_delegate, domain);
 	mono_marshal_unlock ();
+#if HAVE_BOEHM_GC
 	mono_gc_handle_unlock ();
+#endif
 }
 
 static void 
