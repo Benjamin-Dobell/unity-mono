@@ -401,6 +401,8 @@ mono_ptr_to_ansibstr (const char *ptr, size_t slen);
 
 void mono_delegate_free_ftnptr (MonoDelegate *delegate);
 
+void delegate_hash_table_clear_domain (MonoDomain *domain);
+
 void
 mono_marshal_ftnptr_eh_callback (guint32 gchandle);
 

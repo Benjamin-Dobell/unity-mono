@@ -950,6 +950,8 @@ finalize_domain_objects (void)
 	mono_gc_invoke_finalizers ();
 #endif
 
+	delegate_hash_table_clear_domain (domain);
+
 	/* cleanup the reference queue */
 	reference_queue_clear_for_domain (domain);
 	

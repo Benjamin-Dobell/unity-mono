@@ -2821,6 +2821,12 @@ mono_gchandle_is_in_domain_internal (MonoGCHandle gchandle, MonoDomain *domain)
 	return domain->domain_id == gchandle_domain->domain_id;
 }
 
+gboolean
+mono_gchandle_is_in_domain_internal_unsafe (MonoGCHandle gchandle, MonoDomain* domain)
+{
+	return mono_gchandle_is_in_domain_internal(gchandle, domain);
+}
+
 GCHandleType
 mono_gchandle_get_type_internal (MonoGCHandle gchandle)
 {
