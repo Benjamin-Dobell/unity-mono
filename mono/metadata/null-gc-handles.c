@@ -383,7 +383,7 @@ mono_gchandle_is_in_domain_internal (guint32 gchandle, MonoDomain *domain)
 }
 
 gboolean
-mono_gchandle_is_in_domain_internal_lock_free (MonoGCHandle gchandle, MonoDomain* domain)
+mono_gchandle_is_in_domain_internal_unsafe (MonoGCHandle gchandle, MonoDomain* domain)
 {
 	guint slot = MONO_GC_HANDLE_SLOT (gchandle);
 	guint type = MONO_GC_HANDLE_TYPE (gchandle);

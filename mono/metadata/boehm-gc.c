@@ -1944,7 +1944,7 @@ mono_gchandle_is_in_domain_internal (MonoGCHandle gchandle, MonoDomain *domain)
 }
 
 /**
- * mono_gchandle_is_in_domain_internal_lock_free:
+ * mono_gchandle_is_in_domain_internal_unsafe:
  * \param gchandle a GCHandle's handle.
  * \param domain An application domain.
  * 
@@ -1954,7 +1954,7 @@ mono_gchandle_is_in_domain_internal (MonoGCHandle gchandle, MonoDomain *domain)
  * \returns TRUE if the object wrapped by the \p gchandle belongs to the specific \p domain.
  */
 gboolean
-mono_gchandle_is_in_domain_internal_lock_free(MonoGCHandle gchandle, MonoDomain* domain)
+mono_gchandle_is_in_domain_internal_unsafe(MonoGCHandle gchandle, MonoDomain* domain)
 {
 	guint slot = 0;
 	HandleData* handles = handle_lookup(gchandle, &slot);

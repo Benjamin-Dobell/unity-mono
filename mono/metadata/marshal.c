@@ -373,7 +373,7 @@ static gboolean
 domain_free_delegate (gpointer key, gpointer value, gpointer data)
 {
 	// We don't need to free the GCHandle here because the domain unload already did that for us
-	return mono_gchandle_is_in_domain_internal_lock_free ((MonoGCHandle)value, (MonoDomain*)data);
+	return mono_gchandle_is_in_domain_internal_unsafe ((MonoGCHandle)value, (MonoDomain*)data);
 }
 
 void

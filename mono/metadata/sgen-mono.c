@@ -2822,7 +2822,7 @@ mono_gchandle_is_in_domain_internal (MonoGCHandle gchandle, MonoDomain *domain)
 }
 
 gboolean
-mono_gchandle_is_in_domain_internal_lock_free (MonoGCHandle gchandle, MonoDomain* domain)
+mono_gchandle_is_in_domain_internal_unsafe (MonoGCHandle gchandle, MonoDomain* domain)
 {
 	return mono_gchandle_is_in_domain_internal(gchandle, domain);
 }
