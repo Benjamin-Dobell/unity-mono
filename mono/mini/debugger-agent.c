@@ -10530,8 +10530,8 @@ debugger_thread (void *arg)
 
 	PRINT_DEBUG_MSG (1, "[dbg] Debugger thread exited.\n");
 	
-	if (!attach_failed && command_set == CMD_SET_VM && command == CMD_VM_DISPOSE && !(vm_death_event_sent || mono_runtime_is_shutting_down ())) {
-		PRINT_DEBUG_MSG (2, "[dbg] Detached - restarting clean debugger thread.\n");
+	if (!attach_failed && !(vm_death_event_sent || mono_runtime_is_shutting_down ())) {
+		PRINT_DEBUG_MSG (1, "[dbg] Detached - restarting clean debugger thread.\n");
 		ERROR_DECL (error);
 		start_debugger_thread (error);
 		mono_error_cleanup (error);
