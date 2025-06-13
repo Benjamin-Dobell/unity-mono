@@ -1571,7 +1571,7 @@ build_imt_slots (MonoClass *klass, MonoVTable *vt, MonoDomain *domain, gpointer*
 				method = mono_class_get_method_by_index (mono_class_get_generic_class (iface)->container_class, method_slot_in_interface);
 				if (m_method_is_static (method))
 					continue;				
-				if (mono_method_get_imt_slot (method) != slot_num) {
+				if (m_method_is_virtual(method) && mono_method_get_imt_slot (method) != slot_num) {
 					vt_slot ++;
 					continue;
 				}
