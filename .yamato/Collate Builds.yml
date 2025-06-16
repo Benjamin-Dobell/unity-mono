@@ -33,8 +33,5 @@ triggers:
 artifacts: 
   builds:
     paths:
-      - collectedbuilds/builds.7z
-  stevedore:
-    paths:
-      - stevedore/MonoBleedingEdge.7z
-      - stevedore/artifactid.txt
+      - collectedbuilds/builds.tar.zst
+      - collectedbuilds/builds.tar.zst.list
