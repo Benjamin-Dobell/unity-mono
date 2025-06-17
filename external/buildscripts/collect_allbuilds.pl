@@ -62,32 +62,8 @@ system("cp embedruntimes/linux64/libMonoPosixHelper.so monodistribution/lib/libM
 
 rmove('versions-aggregated.txt', 'versions.txt');
 
-print(">>> Create stevedore artifact $monoroot/stevedore/MonoBleedingEdge.7z");
-
-rmtree("../stevedore");
-my $stevedoreMbePath = "../stevedore/MonoBleedingEdge";
-my $stevedoreMbe7z = "../stevedore/MonoBleedingEdge.7z";
-my $stevedoreMbeArtifactID = "../stevedore/artifactid.txt";
-
-system("mkdir -p $stevedoreMbePath") eq 0 or die("failed to mkdir $stevedoreMbePath");
-system("cp -r * $stevedoreMbePath/") eq 0 or die ("failed copying builds to $stevedoreMbePath\n");
-
-# Use our 7za fork with zstd support, installed in the PATH somewhere.
-# See .yamato/scripts/collate_builds.sh for more details.
-system("7za a $stevedoreMbe7z -m0=zstd -mx22 $stevedoreMbePath/* -sdel") eq 0 or die("failed 7z up $stevedoreMbePath");
-system("rm -rf $stevedoreMbePath") eq 0 or die("failed to delete $stevedoreMbePath");
-
-# Write stevedore artifact ID to file
-my $revision = `git rev-parse --short HEAD`;
-system("mono ../external/buildscripts/bee.exe steve new $stevedoreMbe7z MonoBleedingEdge $revision") eq 0 or die("failed running bee");
-open (my $file, '>', $stevedoreMbeArtifactID);
-my $artifactID = `mono ../external/buildscripts/bee.exe steve new $stevedoreMbe7z MonoBleedingEdge $revision`;
-print $file $artifactID; 
-print (">>> MonoBleedingEdge stevedore artifact ID: $artifactID\n");
-
-print(">>> Done creating stevedore artifact $monoroot/MonoBleedingEdge.7z");
-
-system("zip -r builds.zip *") eq 0 or die("failed zipping up builds");
-
-system("7za a builds.7z -m0=zstd -mx22 * -x!builds.zip") eq 0 or die("failed 7z up builds");
-
+my $cmd = "bsdtar --options zstd:compression-level=22 -cavf ../builds.tar.zst *";
+system($cmd) eq 0 or die("Command failed: \"$cmd\"");
+system("mv -f ../builds.tar.zst .") eq 0 or die("Failed to move builds.tar.zst into place");
+$cmd = "unity-unpacker l -slt builds.tar.zst > builds.tar.zst.list";
+system($cmd) eq 0 or die("Command failed: \"$cmd\"");

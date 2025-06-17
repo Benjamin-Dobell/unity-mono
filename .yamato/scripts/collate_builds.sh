@@ -1,12 +1,30 @@
+#!/bin/bash
 set -euxo pipefail
 
-sudo apt-get install -qy zip unzip
+repo_dir="realpath $(dirname "$0")/../.."
 
-# Use our forked 7za with zstd support.
+sudo apt-get install -qy unzip
+
 osarch=`uname -s`-`uname -m`
 case $osarch in
 	Linux-x86_64)
-		sevenzip_artifact=7za-linux-x64/9e098bea868c_201bbbd99b245a6f887497113ec305d1a7d158a1595d753e77017237ac91b722.zip
+		mkdir -p "$repo_dir/artifacts/libarchive"
+		pushd "$repo_dir/artifacts/libarchive"
+
+		if [ ! -e bsdtar ]
+		then
+			wget -q https://public-stevedore.unity3d.com/r/public/bsdtar-linux-x64/3.8.1_28985563_1365df71ca0a504c6949b1cf2e257caa6b0cacbac4b2b15f49ce75da6699bc87.zip
+			unzip 3.8.1_28985563_1365df71ca0a504c6949b1cf2e257caa6b0cacbac4b2b15f49ce75da6699bc87.zip bsdtar
+		fi
+
+		if [ ! -e unity-unpacker ]
+		then
+			wget -q https://public-stevedore.unity3d.com/r/public/unity-unpacker-linux-x64/3.8.1_28985563_715449296d1e57e2625bb882eee684e27f46553a6782ddf4a3ec9a42e4210e58.zip
+			unzip 3.8.1_28985563_715449296d1e57e2625bb882eee684e27f46553a6782ddf4a3ec9a42e4210e58.zip unity-unpacker
+		fi
+
+		PATH=`pwd`:$PATH
+		popd
 		;;
 	*)
 		echo "Error: this script does not support $osarch"
@@ -14,10 +32,7 @@ case $osarch in
 	;;
 esac
 
-unpack_dir=external/buildscripts/artifacts/7za-zstd
-mono external/buildscripts/bee.exe steve internal-unpack public $sevenzip_artifact $unpack_dir
-chmod +x $unpack_dir/7za
-export PATH=`pwd`/$unpack_dir:$PATH
+PATH=`pwd`:$PATH
 
 perl external/buildscripts/collect_allbuilds.pl
 pwd
