@@ -65,5 +65,11 @@ rmove('versions-aggregated.txt', 'versions.txt');
 my $cmd = "bsdtar --options zstd:compression-level=22 -cavf ../builds.tar.zst *";
 system($cmd) eq 0 or die("Command failed: \"$cmd\"");
 system("mv -f ../builds.tar.zst .") eq 0 or die("Failed to move builds.tar.zst into place");
-$cmd = "unity-unpacker l -slt builds.tar.zst > builds.tar.zst.list";
+
+my $md5 = `md5sum builds.tar.zst | cut -d' ' -f1"`;
+open(FH, '>', builds.tar.zst.list) or die $!;
+print FH "md5:$md5\n";
+close(FH);
+
+$cmd = "unity-unpacker l -slt builds.tar.zst >> builds.tar.zst.list";
 system($cmd) eq 0 or die("Command failed: \"$cmd\"");
