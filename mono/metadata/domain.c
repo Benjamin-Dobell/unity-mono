@@ -86,6 +86,10 @@ gboolean mono_dont_free_domains;
 #define mono_appdomains_unlock() mono_coop_mutex_unlock (&appdomains_mutex)
 static MonoCoopMutex appdomains_mutex;
 
+#define mono_domain_unload_lock() mono_coop_mutex_lock (&mono_domain_unload_mutex)
+#define mono_domain_unload_unlock() mono_coop_mutex_unlock (&mono_domain_unload_mutex)
+MonoCoopMutex mono_domain_unload_mutex;
+
 static MonoDomain *mono_root_domain = NULL;
 
 /* some statistics */
@@ -559,6 +563,7 @@ mono_init_internal (const char *filename, const char *exe_filename, const char *
 	mono_thread_info_attach ();
 
 	mono_coop_mutex_init_recursive (&appdomains_mutex);
+	mono_coop_mutex_init_recursive(&mono_domain_unload_mutex);
 
 	mono_metadata_init ();
 	mono_images_init ();
@@ -925,6 +930,7 @@ mono_cleanup (void)
 	mono_metadata_cleanup ();
 
 	mono_coop_mutex_destroy (&appdomains_mutex);
+	mono_coop_mutex_destroy (&mono_domain_unload_mutex);
 
 	mono_w32process_cleanup ();
 	mono_w32file_cleanup ();
@@ -1039,6 +1045,14 @@ mono_domain_foreach (MonoDomainFunc func, gpointer user_data)
 
 	gc_free_fixed_non_heap_list (copy);
 	MONO_EXIT_GC_UNSAFE;
+}
+
+void
+mono_domain_foreach_locked(MonoDomainFunc func, gpointer user_data)
+{
+	mono_domain_unload_lock();
+	mono_domain_foreach(func, user_data);
+	mono_domain_unload_unlock();
 }
 
 void

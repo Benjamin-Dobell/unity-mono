@@ -110,6 +110,9 @@ MONO_API void
 mono_domain_foreach        (MonoDomainFunc func, void* user_data);
 
 MONO_API void
+mono_domain_foreach_locked (MonoDomainFunc func, void* user_data);
+
+MONO_API void
 mono_domain_assembly_foreach (MonoDomain* domain, MonoDomainAssemblyFunc func, void* user_data);
 
 MONO_API MONO_RT_EXTERNAL_ONLY MonoAssembly *

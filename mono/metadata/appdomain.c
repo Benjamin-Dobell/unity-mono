@@ -3312,9 +3312,13 @@ deregister_reflection_info_roots (MonoDomain *domain)
 	mono_domain_assemblies_unlock (domain);
 }
 
+extern MonoCoopMutex mono_domain_unload_mutex;
+
 static gsize WINAPI
 unload_thread_main (void *arg)
 {
+	mono_coop_mutex_lock(&mono_domain_unload_mutex);
+
 	unload_data *data = (unload_data*)arg;
 	MonoDomain *domain = data->domain;
 	MonoMemoryManager *memory_manager = mono_domain_memory_manager (domain);
@@ -3386,6 +3390,7 @@ unload_thread_main (void *arg)
 
 	result = 0; // success
 exit:
+	mono_coop_mutex_unlock(&mono_domain_unload_mutex);
 	mono_atomic_store_release (&data->done, TRUE);
 	unload_data_unref (data);
 	return result;

@@ -290,7 +290,7 @@ on_attach ()
 	memset (&enumerationData, 0, sizeof (enumerationData));
 
 	// Iterate through each domain
-	mono_domain_foreach (on_enumerate_domain, &enumerationData);
+	mono_domain_foreach_locked (on_enumerate_domain, &enumerationData);
 
 	ETW_PROFILER_LOG_ARGS ("Finished enumerating JIT data. Found %d domains, %d assemblies, %d methods", enumerationData.mNumDomains, enumerationData.mNumAssemblies, enumerationData.mNumMethods);
 }
