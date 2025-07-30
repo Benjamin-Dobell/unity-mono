@@ -86,8 +86,10 @@ gboolean mono_dont_free_domains;
 #define mono_appdomains_unlock() mono_coop_mutex_unlock (&appdomains_mutex)
 static MonoCoopMutex appdomains_mutex;
 
-#define mono_domain_unload_lock() mono_coop_mutex_lock (&mono_domain_unload_mutex)
-#define mono_domain_unload_unlock() mono_coop_mutex_unlock (&mono_domain_unload_mutex)
+/* Lock used to prevent domain enumeration while domains may be unloading.
+ * This lock must be taken before any other domain-related locks to prevent deadlock. 
+ * See https://github.com/Unity-Technologies/mono/pull/2173
+ */
 MonoCoopMutex mono_domain_unload_mutex;
 
 static MonoDomain *mono_root_domain = NULL;
@@ -1048,11 +1050,11 @@ mono_domain_foreach (MonoDomainFunc func, gpointer user_data)
 }
 
 void
-mono_domain_foreach_locked(MonoDomainFunc func, gpointer user_data)
+mono_unity_domain_foreach_locked(MonoDomainFunc func, gpointer user_data)
 {
-	mono_domain_unload_lock();
+	mono_coop_mutex_lock(&mono_domain_unload_mutex);
 	mono_domain_foreach(func, user_data);
-	mono_domain_unload_unlock();
+	mono_coop_mutex_unlock(&mono_domain_unload_mutex);
 }
 
 void
