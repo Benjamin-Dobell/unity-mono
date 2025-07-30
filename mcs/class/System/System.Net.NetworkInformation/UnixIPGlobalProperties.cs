@@ -67,6 +67,9 @@ namespace System.Net.NetworkInformation {
 				} catch (EntryPointNotFoundException) {
 					return String.Empty;
 				}
+				catch (DllNotFoundException) {
+					return String.Empty;
+				}
 #endif
 				int len = Array.IndexOf<byte> (bytes, 0);
 				return Encoding.ASCII.GetString (bytes, 0, len < 0 ? 256 : len);
