@@ -1,5 +1,6 @@
 #include <config.h>
 #include <mono/utils/mono-publib.h>
+
 #include "unity-memory-info.h"
 #include <mono/metadata/assembly-internals.h>
 #include <mono/metadata/class-internals.h>
@@ -8,6 +9,7 @@
 #include <mono/metadata/object-internals.h>
 #include <mono/metadata/tokentype.h>
 #include <mono/metadata/gc-internals.h>
+#include <mono/utils/mono-conc-hashtable.h>
 #include <glib.h>
 #include <stdlib.h>
 
@@ -17,7 +19,7 @@ typedef struct ClassReportContext {
 } ClassReportContext;
 
 static void
-ReportHashMapClasses(gpointer key, gpointer value, gpointer user_data)
+ReportHashMapClass(gpointer key, gpointer value, gpointer user_data)
 {
 	ClassReportContext *context = (ClassReportContext *)user_data;
 	MonoClass *klass = (MonoClass *)value;
@@ -42,6 +44,35 @@ ReportHashMapListClasses(gpointer key, gpointer value, gpointer user_data)
 }
 
 static void
+ReportGenericClass(gpointer key, gpointer value, gpointer user_data)
+{
+	MonoGenericClass *genericClass = (MonoGenericClass *)key;
+	ClassReportContext *context = (ClassReportContext *)user_data;
+
+	if (genericClass->cached_class != NULL && genericClass->cached_class->inited)
+		context->callback(genericClass->cached_class, context->user_data);
+}
+
+// Iterate MonoInternalHashTable similarly to mono_internal_hash_table_apply, but allow passing custom context
+static void
+IterateMonoInternalHashTable (MonoInternalHashTable *table, gpointer user_data)
+{
+	ClassReportContext *context = (ClassReportContext *)user_data;
+	for (gint i = 0; i < table->size; i++) {
+		gpointer head = table->table [i];
+		while (head) {
+			MonoClass *klass = (MonoClass *)head;
+
+			if (klass->inited)
+				context->callback(klass, context->user_data);
+
+			head = *(table->next_value (head));
+		}
+	}
+}
+
+// Report all classes from an assembly
+static void
 ReportClassesFromAssembly(MonoAssembly *assembly, void *user_data)
 {
 	MonoImage *image = mono_assembly_get_image_internal(assembly);
@@ -65,11 +96,8 @@ ReportClassesFromAssembly(MonoAssembly *assembly, void *user_data)
 		}
 	}
 
-	/* Some classes are only in this list.
-	   They are added in reflection_setup_internal_class_internal.
-	*/
+	// Iterate all classes created with TypeBuilder
 	list = image->reflection_info_unregister_classes;
-
 	while (list) {
 		MonoClass *klass = (MonoClass *)list->data;
 
@@ -79,51 +107,45 @@ ReportClassesFromAssembly(MonoAssembly *assembly, void *user_data)
 		list = list->next;
 	}
 
-	// Iterate all image classes
-	for (i = 1; i < tdef->rows; ++i) {
-		MonoClass *klass;
-		MonoError error;
+	// Iterate all initialized image classes
+	// Every created class is in the class_cache
+	IterateMonoInternalHashTable(&image->class_cache, user_data);
 
-		guint32 token = (i + 1) | MONO_TOKEN_TYPE_DEF;
-
-		klass = mono_class_get_checked(image, token, &error);
-
-		if (klass && klass->inited)
-			context->callback(klass, context->user_data);
-	}
-
+	// Iterate all initialized array classes
 	if (image->array_cache)
 		g_hash_table_foreach(image->array_cache, ReportHashMapListClasses, user_data);
 
+	// Iterate all initialized single-dimention array classes
 	if (image->szarray_cache)
-		g_hash_table_foreach(image->szarray_cache, ReportHashMapClasses, user_data);
+		g_hash_table_foreach(image->szarray_cache, ReportHashMapClass, user_data);
 
+	// Iterate all initialized class pointer classes
 	if (image->ptr_cache)
-		g_hash_table_foreach(image->ptr_cache, ReportHashMapClasses, user_data);
+		g_hash_table_foreach(image->ptr_cache, ReportHashMapClass, user_data);
 }
 
-static void
-ReportGenericClasses(MonoGenericClass *genericClass, gpointer user_data)
-{
-	ClassReportContext *context = (ClassReportContext *)user_data;
-
-	if (genericClass->cached_class != NULL && genericClass->cached_class->inited)
-		context->callback(genericClass->cached_class, context->user_data);
-}
-
+// Report all classes in image sets which contain generic instances.
 static void
 ReportImageSetClasses(MonoImageSet *imageSet, void* user_data)
 {
+	// Generic class instances
+	if (imageSet->gclass_cache)
+		mono_conc_hashtable_foreach(imageSet->gclass_cache, ReportGenericClass, user_data);
+
+	// Generic array class instances
 	if (imageSet->array_cache)
 		g_hash_table_foreach(imageSet->array_cache, ReportHashMapListClasses, user_data);
 
+	// Generic single dimention array (SZArray) class instances
 	if (imageSet->szarray_cache)
-		g_hash_table_foreach(imageSet->szarray_cache, ReportHashMapClasses, user_data);
+		g_hash_table_foreach(imageSet->szarray_cache, ReportHashMapClass, user_data);
 
+	// Generic class pointer instances
 	if (imageSet->ptr_cache)
-		g_hash_table_foreach(imageSet->ptr_cache, ReportHashMapClasses, user_data);
+		g_hash_table_foreach(imageSet->ptr_cache, ReportHashMapClass, user_data);
 }
 
+// Report all initialized classes in the current domain.
 MONO_API void
 mono_unity_class_for_each(ClassReportFunc callback, void *user_data)
 {
@@ -132,19 +154,6 @@ mono_unity_class_for_each(ClassReportFunc callback, void *user_data)
 	reportContext.user_data = user_data;
 	// Report all assembly classes and assembly specific arrays
 	mono_domain_assembly_foreach(mono_domain_get(), ReportClassesFromAssembly, &reportContext);
-	// Report all generic classes
-	mono_metadata_generic_class_foreach(ReportGenericClasses, &reportContext);
-	// Report all image set arrays
+	// Report all image set arrays which include generic classes
 	mono_metadata_image_set_foreach(ReportImageSetClasses, &reportContext);
-}
-
-MONO_API MonoManagedMemorySnapshot* 
-mono_unity_capture_memory_snapshot()
-{
-	return NULL;
-}
-
-MONO_API void
-mono_unity_free_captured_memory_snapshot(MonoManagedMemorySnapshot* snapshot)
-{
 }
