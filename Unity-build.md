@@ -14,7 +14,8 @@
 
 #### Runtime
 From the root of your cloned mono directory run:
-- external\buildscripts\build_runtime_win.pl
+- external\buildscripts\build_runtime_win64.pl
+(there are variations of build_runtime script for other platforms)
 
 or: Open msvc/mono.sln in Visual Studio and build the Runtime/libmono-dynamic project
 
