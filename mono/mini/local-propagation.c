@@ -223,7 +223,7 @@ mono_strength_reduction_division (MonoCompile *cfg, MonoInst *ins)
 			guint32 tmp_regi;
 #endif
 			struct magic_signed mag;
-			int power2 = mono_is_power_of_two (ins->inst_imm);
+			int power2 = (ins->inst_imm > 0) ? mono_is_power_of_two (ins->inst_imm) : -1;
 			/* The decomposition doesn't handle exception throwing */
 			/* Optimization with MUL does not apply for -1, 0 and 1 divisors */
 			if (ins->inst_imm == 0 || ins->inst_imm == -1) {
@@ -350,8 +350,8 @@ mono_strength_reduction_ins (MonoCompile *cfg, MonoInst *ins, const char **spec)
 			ins->opcode = OP_INEG;
 		} else if ((ins->opcode == OP_LMUL_IMM) && (ins->inst_imm == -1)) {
 			ins->opcode = OP_LNEG;
-		} else {
-			int power2 = mono_is_power_of_two (ins->inst_imm);
+		} else if (ins->inst_imm > 0 && ins->inst_imm <= UINT32_MAX) {
+			int power2 = mono_is_power_of_two ( ((guint32)(ins->inst_imm)));
 			if (power2 >= 0) {
 				ins->opcode = (ins->opcode == OP_MUL_IMM) ? OP_SHL_IMM : ((ins->opcode == OP_LMUL_IMM) ? OP_LSHL_IMM : OP_ISHL_IMM);
 				ins->inst_imm = power2;
