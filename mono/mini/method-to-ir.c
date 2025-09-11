@@ -2196,7 +2196,8 @@ check_method_sharing (MonoCompile *cfg, MonoMethod *cmethod, gboolean *out_pass_
 		else
 			g_assert (!pass_vtable);
 
-		if (mono_method_is_generic_sharable_full (cmethod, TRUE, TRUE, TRUE) || mini_method_is_default_method(cmethod)) {
+		if (mono_method_is_generic_sharable_full (cmethod, TRUE, TRUE, TRUE) ||
+			(mini_method_is_default_method(cmethod) && cmethod->flags & METHOD_ATTRIBUTE_STATIC)) {
 			pass_mrgctx = TRUE;
 		} else {
 			if (cfg->gsharedvt && mini_is_gsharedvt_signature (mono_method_signature_internal (cmethod)))
