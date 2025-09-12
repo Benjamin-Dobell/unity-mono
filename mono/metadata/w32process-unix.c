@@ -1858,7 +1858,7 @@ process_create (const gunichar2 *appname, const gunichar2 *cmdline,
 		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_PROCESS, "%s: new process startup not synchronized. We may not notice if the newly created process exits immediately.", __func__);
 	}
 
-#if defined(HOST_DARWIN) && defined(TARGET_AMD64)
+#if defined(HOST_DARWIN)
 	mono_gc_invoke_with_gc_lock(fork_helper, &pid);
 #else
 	pid = fork();
