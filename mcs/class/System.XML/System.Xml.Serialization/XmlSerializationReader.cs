@@ -853,11 +853,11 @@ namespace System.Xml.Serialization
 		{
 			readCount++;
 			if (isNull) {
-				Reader.ReadString ();
+				Reader.ReadElementString ();
 				return null;
 			}
 			else
-				return ToByteArrayBase64 (Reader.ReadString ());
+				return ToByteArrayBase64 (Reader.ReadElementString ());
 		}
 
 		protected static byte[] ToByteArrayBase64 (string value)
@@ -869,11 +869,11 @@ namespace System.Xml.Serialization
 		{
 			readCount++;
 			if (isNull) {
-				Reader.ReadString ();
+				Reader.ReadElementString ();
 				return null;
 			}
 			else
-				return ToByteArrayHex (Reader.ReadString ());
+				return ToByteArrayHex (Reader.ReadElementString ());
 		}
 
 		protected static byte[] ToByteArrayHex (string value)
