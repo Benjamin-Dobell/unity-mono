@@ -48,8 +48,8 @@ struct _GHashTable {
 	Slot **table;
 	int   table_size;
 	int   in_use;
-	int   threshold;
 	int   last_rehash;
+	gboolean uses_default_hash_and_equality;
 	GDestroyNotify value_destroy_func, key_destroy_func;
 };
 
@@ -119,6 +119,7 @@ g_hash_table_new (GHashFunc hash_func, GEqualFunc key_equal_func)
 
 	hash->hash_func = hash_func;
 	hash->key_equal_func = key_equal_func;
+	hash->uses_default_hash_and_equality = hash->hash_func == g_direct_hash && hash->key_equal_func == g_direct_equal;
 
 	hash->table_size = g_spaced_primes_closest (1);
 	hash->table = g_new0 (Slot *, hash->table_size);
@@ -239,8 +240,7 @@ g_hash_table_insert_replace (GHashTable *hash, gpointer key, gpointer value, gbo
 	sanity_check (hash);
 
 	equal = hash->key_equal_func;
-	if (hash->in_use >= hash->threshold)
-		rehash (hash);
+	rehash (hash);
 
 	hashcode = ((*hash->hash_func) (key)) % hash->table_size;
 	for (s = hash->table [hashcode]; s != NULL; s = s->next){
@@ -348,6 +348,36 @@ g_hash_table_lookup_extended (GHashTable *hash, gconstpointer key, gpointer *ori
 	}
 	return FALSE;
 }
+#ifdef G_OS_WIN32
+
+#define OFFSET_MEMBER(type, base, member) ((gpointer)((gchar*)(base) + offsetof(type, member)))
+
+gpointer
+g_hash_table_lookup_oop(GHashTable* hash, gconstpointer key, GReadPointerFunc read_pointer, GReadUInt32Func read_uint32)
+{
+	g_return_val_if_fail(hash != NULL, NULL);
+	// This is only safe if we are using the default hash/equality functions
+	g_return_val_if_fail(read_uint32(OFFSET_MEMBER(GHashTable, hash, uses_default_hash_and_equality)) != 0, NULL);
+
+	gint32 table_size = read_uint32(OFFSET_MEMBER(GHashTable, hash, table_size));
+	guint hashcode = g_direct_hash(key) % table_size;
+
+	Slot** slots = read_pointer(OFFSET_MEMBER(GHashTable, hash, table));
+	{
+		Slot* slot = read_pointer(slots + hashcode);
+		while (slot != NULL)
+		{
+			if (key == read_pointer(OFFSET_MEMBER(Slot, slot, key)))
+				return read_pointer(OFFSET_MEMBER(Slot, slot, value));
+
+			slot = read_pointer(OFFSET_MEMBER(Slot, slot, next));
+		}
+	}
+
+	return NULL;
+}
+
+#endif
 
 void
 g_hash_table_foreach (GHashTable *hash, GHFunc func, gpointer user_data)

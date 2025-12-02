@@ -53,6 +53,8 @@ typedef struct _MonoStackFrameDetails
     size_t assemblyNameLen;
     char* assemblyFileName;      
     size_t assemblyFileNameLen;
+    gint32 ilOffset;
+    gint32 methodToken;
 } MonoStackFrameDetails;
 
 typedef gboolean(*ReadMemoryCallback)(void* buffer, gsize* read, const void* address, gsize size, void* userdata);
@@ -132,6 +134,13 @@ gint32 read_dword(const void* address)
     gint32 v = 0;
     read_memory(&v, address, sizeof(v));
     return v;
+}
+
+gint8 read_byte(const void* address)
+{
+	gint8 v = 0;
+	read_memory(&v, address, sizeof(v));
+	return v;
 }
 
 GList* read_glist_next(GList* list) { return (GList*) read_pointer(OFFSET_MEMBER(GList, list, next)); }
@@ -372,6 +381,36 @@ oop_jit_info_table_find(
     return NULL;
 }
 
+typedef struct {
+	MonoMemPool* mp;
+	GHashTable* method_hash;
+} DebugDomainInfo;
+
+typedef struct {
+	const guint8* code_start;
+	guint32 code_size;
+	guint8 data[MONO_ZERO_LEN_ARRAY];
+} MonoDebugMethodAddress;
+
+static guint32
+read_leb128_oop(guint8* ptr, guint8** rptr)
+{
+	guint32 result = 0, shift = 0;
+
+	while (TRUE) {
+		guint8 byte = read_byte(ptr);
+		ptr++;
+
+		result |= (byte & 0x7f) << shift;
+		if ((byte & 0x80) == 0)
+			break;
+		shift += 7;
+	}
+
+	*rptr = ptr;
+	return result;
+}
+
 MONO_API int
 mono_unity_oop_get_stack_frame_details(
     const MonoDomain* domain,
@@ -434,6 +473,44 @@ mono_unity_oop_get_stack_frame_details(
 
         free(className);
         free(nsName);
+
+	frameDetails->methodToken = read_dword(OFFSET_MEMBER(MonoMethod, method, token));
+
+	// IL offset
+	DebugDomainInfo* debug_info = read_pointer(OFFSET_MEMBER(MonoDomain, domain, debug_info));
+	if (debug_info != NULL)
+	{
+		guint8* code_start = read_pointer(OFFSET_MEMBER(MonoJitInfo, ji, code_start));
+		int nativeOffset = (int)((guint8*)frameAddress - code_start);
+		GHashTable* method_hash = read_pointer(OFFSET_MEMBER(DebugDomainInfo, debug_info, method_hash));
+		MonoDebugMethodAddress* address = g_hash_table_lookup_oop(method_hash, method, &read_pointer, &read_dword);
+
+		if (address)
+		{
+			// reduced implementation of mono_debug_read_method
+			guint8* ptr = OFFSET_MEMBER(MonoDebugMethodAddress, address, data);
+
+			// jit->prologue_end = read_leb128(ptr, &ptr);
+			read_leb128_oop(ptr, &ptr);
+			// jit->epilogue_begin = read_leb128(ptr, &ptr);
+			read_leb128_oop(ptr, &ptr);
+			// jit->num_line_numbers = read_leb128(ptr, &ptr);
+			guint32 num_line_numbers = read_leb128_oop(ptr, &ptr);
+			for (guint32 j = 0; j < num_line_numbers; j++)
+			{
+				gint32 il_offset = read_leb128_oop(ptr, &ptr);
+				gint32 native_offset = read_leb128_oop(ptr, &ptr);
+				if (nativeOffset >= native_offset)
+				{
+					frameDetails->ilOffset = il_offset;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+	}
 
         return TRUE;
     }
