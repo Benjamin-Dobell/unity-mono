@@ -1,0 +1,75 @@
+name: Linux Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: "Parallel make jobs"
+        required: false
+        default: "4"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "mono/**"
+      - "external/**"
+      - "scripts/build-linux.sh"
+      - ".github/workflows/linux-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf \
+            automake \
+            bison \
+            build-essential \
+            ca-certificates \
+            clang \
+            cmake \
+            flex \
+            gawk \
+            gettext \
+            git \
+            libglib2.0-dev \
+            libssl-dev \
+            libtool \
+            m4 \
+            make \
+            perl \
+            pkg-config \
+            python3 \
+            xz-utils \
+            zlib1g-dev
+
+      - name: Build Unity Mono (Linux)
+        env:
+          JOBS: ${{ github.event.inputs.jobs || '4' }}
+          PREFIX: ${{ github.workspace }}/artifacts/linux/install
+        run: |
+          ./scripts/build-linux.sh --jobs "${JOBS}" --install "${PREFIX}"
+
+      - name: Package artifacts
+        run: |
+          tar -C "${{ github.workspace }}/artifacts/linux" -czf "${{ github.workspace }}/unity-mono-linux.tar.gz" install
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-mono-linux-${{ github.sha }}
+          path: |
+            ${{ github.workspace }}/unity-mono-linux.tar.gz
+            ${{ github.workspace }}/artifacts/linux/install
+          if-no-files-found: error
+          retention-days: 14

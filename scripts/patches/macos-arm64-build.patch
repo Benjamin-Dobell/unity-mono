@@ -1,0 +1,153 @@
+diff --git a/external/buildscripts/build.pl b/external/buildscripts/build.pl
+index 58a5d591fcf..2946543bf4f 100644
+--- a/external/buildscripts/build.pl
++++ b/external/buildscripts/build.pl
+@@ -23,6 +23,9 @@ my $includesroot = "$buildsroot/include";
+ my $sourcesroot = "$buildsroot/source";
+ my $distdir = "$buildsroot/monodistribution";
+ my $buildMachine = $ENV{UNITY_THISISABUILDMACHINE};
++my $xcrunSdkPath = "";
++my $xcrunClangPath = "";
++my $xcrunClangxxPath = "";
+ 
+ # This script should not be ran on windows, if it is, kindly call the wrapper
+ # to switch over to cygwin
+@@ -446,12 +449,39 @@ if ($build)
+ 	}
+ 
+ 	my $macSdkPath = "";
++	my $macClangPath = "";
++	my $macClangxxPath = "";
+ 	my $macversion = '10.12';
+ 	my $darwinVersion = "10";
+ 	if ($^O eq 'darwin')
+ 	{
+ 		$sdk='11.0';
+ 		$macSdkPath = "$externalBuildDeps/mac-toolchain-11_0/MacOSX$sdk.sdk";
++
++		if (-d $macSdkPath)
++		{
++			$macClangPath = "$macSdkPath/../usr/bin/clang";
++			$macClangxxPath = "$macSdkPath/../usr/bin/clang++";
++			print(">>> Using Unity mac toolchain SDK: $macSdkPath\n");
++		}
++		else
++		{
++			chomp($xcrunSdkPath = `xcrun --sdk macosx --show-sdk-path 2>/dev/null`);
++			chomp($xcrunClangPath = `xcrun --sdk macosx -f clang 2>/dev/null`);
++			chomp($xcrunClangxxPath = `xcrun --sdk macosx -f clang++ 2>/dev/null`);
++
++			if ($xcrunSdkPath ne "" && $xcrunClangPath ne "" && $xcrunClangxxPath ne "" && -d $xcrunSdkPath)
++			{
++				$macSdkPath = $xcrunSdkPath;
++				$macClangPath = $xcrunClangPath;
++				$macClangxxPath = $xcrunClangxxPath;
++				print(">>> Unity mac toolchain SDK not found. Falling back to Xcode SDK: $macSdkPath\n");
++			}
++			else
++			{
++				die("Failed to locate a macOS SDK/toolchain. Expected Unity SDK at $macSdkPath or valid xcrun paths.\n");
++			}
++		}
+ 	}
+ 
+ 	if ($iphone || $iphoneSimulator)
+@@ -601,8 +631,8 @@ if ($build)
+ 			$ENV{CXXFLAGS} = "-mmacosx-version-min=$macversion -stdlib=libc++";
+ 			$ENV{CPPFLAGS} = "$ENV{CFLAGS} -mmacosx-version-min=$macversion";
+ 
+-			$ENV{CC} = "$macSdkPath/../usr/bin/clang -arch i386";
+-			$ENV{CXX} = "$macSdkPath/../usr/bin/clang++ -arch i386";
++			$ENV{CC} = "$macClangPath -arch i386";
++			$ENV{CXX} = "$macClangxxPath -arch i386";
+ 			$ENV{CPP} = "$ENV{CC} -E";
+ 			$ENV{LD} = $ENV{CC};
+ 			$ENV{LDFLAGS} = "-stdlib=libc++";
+@@ -1145,9 +1175,9 @@ if ($build)
+ 
+ 		$mcs = "EXTERNAL_MCS=$existingMonoRootPath/bin/mcs";
+ 
+-		$ENV{'CC'} = "$macSdkPath/../usr/bin/clang";
+-		$ENV{'CXX'} = "$macSdkPath/../usr/bin/clang++";
+-		$ENV{'CFLAGS'} = $ENV{MACSDKOPTIONS} = "-I$macSdkPath/../usr/include -mmacosx-version-min=$macversion -isysroot $macSdkPath -g";
++		$ENV{'CC'} = $macClangPath;
++		$ENV{'CXX'} = $macClangxxPath;
++		$ENV{'CFLAGS'} = $ENV{MACSDKOPTIONS} = "-I$macSdkPath/../usr/include -mmacosx-version-min=$macversion -isysroot $macSdkPath -fPIC -g";
+ 
+ 		$ENV{'CXXFLAGS'} = $ENV{CFLAGS};
+ 		$ENV{'CPPFLAGS'} = $ENV{CFLAGS};
+diff --git a/external/corefx-bugfix/src/Native/AnyOS/brotli/enc/fast_log.c b/external/corefx-bugfix/src/Native/AnyOS/brotli/enc/fast_log.c
+index 2319baeb740..1d6980cde79 100644
+--- a/external/corefx-bugfix/src/Native/AnyOS/brotli/enc/fast_log.c
++++ b/external/corefx-bugfix/src/Native/AnyOS/brotli/enc/fast_log.c
+@@ -11,7 +11,7 @@ extern "C" {
+ #endif
+ 
+ /* ", ".join(["%.16ff" % x for x in [0.0]+[log2(x) for x in range(1, 256)]]) */
+-const double kBrotliLog2Table[BROTLI_LOG2_TABLE_SIZE] = {
++BROTLI_ENC_API const double kBrotliLog2Table[BROTLI_LOG2_TABLE_SIZE] = {
+   0.0000000000000000f, 0.0000000000000000f, 1.0000000000000000f,
+   1.5849625007211563f, 2.0000000000000000f, 2.3219280948873622f,
+   2.5849625007211561f, 2.8073549220576042f, 3.0000000000000000f,
+diff --git a/external/corefx-bugfix/src/Native/AnyOS/brotli/enc/fast_log.h b/external/corefx-bugfix/src/Native/AnyOS/brotli/enc/fast_log.h
+index 2094f13e556..73cdf9a0fbe 100644
+--- a/external/corefx-bugfix/src/Native/AnyOS/brotli/enc/fast_log.h
++++ b/external/corefx-bugfix/src/Native/AnyOS/brotli/enc/fast_log.h
+@@ -32,7 +32,7 @@ static BROTLI_INLINE uint32_t Log2FloorNonZero(size_t n) {
+ 
+ /* A lookup table for small values of log2(int) to be used in entropy
+    computation. */
+-BROTLI_INTERNAL extern const double kBrotliLog2Table[BROTLI_LOG2_TABLE_SIZE];
++BROTLI_ENC_API extern const double kBrotliLog2Table[BROTLI_LOG2_TABLE_SIZE];
+ 
+ /* Visual Studio 2012 and Android API levels < 18 do not have the log2()
+  * function defined, so we use log() and a multiplication instead. */
+diff --git a/mono/metadata/boehm-gc.c b/mono/metadata/boehm-gc.c
+index ba95b98749e..9bb36c5d941 100644
+--- a/mono/metadata/boehm-gc.c
++++ b/mono/metadata/boehm-gc.c
+@@ -1166,7 +1166,7 @@ mono_gc_wbarrier_object_copy_internal (MonoObject* obj, MonoObject *src)
+ void
+ mono_gc_clear_domain (MonoDomain *domain)
+ {
+-	GC_call_with_alloc_lock (null_ephemerons_for_domain, domain);
++	GC_call_with_alloc_lock ((GC_fn_type)null_ephemerons_for_domain, domain);
+ }
+ 
+ void
+diff --git a/mono/mini/debugger-agent.c b/mono/mini/debugger-agent.c
+index 4540d1a6b55..585c574b433 100644
+--- a/mono/mini/debugger-agent.c
++++ b/mono/mini/debugger-agent.c
+@@ -10598,10 +10598,10 @@ static void burst_mono_install_hooks_imp(BurstMonoDebuggerCallbacks* callbacks,v
+ 	g_BurstDebugCallbacks.BurstFetchMethodName = callbacks->BurstFetchMethodName;
+ 
+ 	// Provide the callee with access to the features it will need
+-	callbacks->buffer_add_byte = buffer_add_byte;
+-	callbacks->buffer_add_int = buffer_add_int;
+-	callbacks->buffer_add_id = buffer_add_id;
+-	callbacks->buffer_add_string = buffer_add_string;
++	callbacks->buffer_add_byte = (void (*)(void*, guint8))buffer_add_byte;
++	callbacks->buffer_add_int = (void (*)(void*, guint32))buffer_add_int;
++	callbacks->buffer_add_id = (void (*)(void*, int))buffer_add_id;
++	callbacks->buffer_add_string = (void (*)(void*, const char*))buffer_add_string;
+ 	callbacks->buffer_add_ptr_id = buffer_add_ptr_id_unsafe;
+ 	callbacks->mono_burst_shutdown = burst_mono_shutdown;
+ 
+diff --git a/mono/utils/mono-threads-mach-helper.c b/mono/utils/mono-threads-mach-helper.c
+index 7b4f140b619..d03d5d0da24 100644
+--- a/mono/utils/mono-threads-mach-helper.c
++++ b/mono/utils/mono-threads-mach-helper.c
+@@ -59,11 +59,8 @@ mono_dead_letter_dealloc (id self, SEL _cmd)
+ {
+ 	struct objc_super super;
+ 	super.receiver = self;
+-#if !defined(__cplusplus) && !__OBJC2__
+-	super.class = nsobject;
+-#else
++	/* Newer Apple SDKs expose objc_super.super_class only. */
+ 	super.super_class = nsobject;
+-#endif
+ 	void (*objc_msgSendSuper_op)(struct objc_super *, SEL) = (void (*)(struct objc_super *, SEL)) objc_msgSendSuper;
+ 	objc_msgSendSuper_op (&super, dealloc);
+ 

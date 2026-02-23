@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (for example v1.2.3)"
+        required: true
+      jobs:
+        description: "Parallel make jobs"
+        required: false
+        default: "4"
+
+permissions:
+  contents: write
+
+jobs:
+  release-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release metadata
+        id: meta
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_base=unity-mono-linux-${TAG}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout requested tag (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git fetch --tags --force
+          git checkout "tags/${{ steps.meta.outputs.tag }}"
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf \
+            automake \
+            bison \
+            build-essential \
+            ca-certificates \
+            clang \
+            cmake \
+            flex \
+            gawk \
+            gettext \
+            git \
+            libglib2.0-dev \
+            libssl-dev \
+            libtool \
+            m4 \
+            make \
+            perl \
+            pkg-config \
+            python3 \
+            xz-utils \
+            zlib1g-dev
+
+      - name: Build Unity Mono (Linux install)
+        env:
+          JOBS: ${{ github.event.inputs.jobs || '4' }}
+          PREFIX: ${{ github.workspace }}/artifacts/linux/install
+        run: |
+          ./scripts/build-linux.sh --jobs "${JOBS}" --install "${PREFIX}"
+
+      - name: Package release assets
+        id: package
+        run: |
+          BASE="${{ steps.meta.outputs.artifact_base }}"
+          TAR="${BASE}.tar.gz"
+          SHA="${BASE}.sha256"
+          tar -C "${{ github.workspace }}/artifacts/linux" -czf "${TAR}" install
+          sha256sum "${TAR}" > "${SHA}"
+          echo "tar=${TAR}" >> "${GITHUB_OUTPUT}"
+          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            ${{ steps.package.outputs.tar }}
+            ${{ steps.package.outputs.sha }}
