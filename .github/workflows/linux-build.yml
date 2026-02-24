@@ -50,6 +50,7 @@ jobs:
             perl \
             pkg-config \
             python3 \
+            wget \
             xz-utils \
             zlib1g-dev
 

@@ -10,7 +10,7 @@ INSTALL=0
 INSTALL_DESTDIR="${INSTALL_DESTDIR:-${PREFIX:-}}"
 INSTALL_PREFIX="${INSTALL_PREFIX:-/}"
 DISABLE_MCS="${DISABLE_MCS:-0}"
-CLEAN=1
+CLEAN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -150,6 +150,51 @@ fi
 if [[ "${INSTALL}" == "1" ]]; then
   make -j"${JOBS}"
   make install DESTDIR="${INSTALL_DESTDIR}"
+
+  # Linux Unity Mono probes corlib under net_4_x-linux. Upstream install layout
+  # places these assemblies in 4.5, so add a compatibility profile link.
+  install_prefix_normalized="${INSTALL_PREFIX%/}"
+  if [[ -z "${install_prefix_normalized}" ]]; then
+    install_prefix_normalized="/"
+  fi
+  if [[ "${install_prefix_normalized}" == "/" ]]; then
+    install_root="${INSTALL_DESTDIR}"
+  else
+    install_root="${INSTALL_DESTDIR}${install_prefix_normalized}"
+  fi
+
+  mono_lib_dir="${install_root}/lib/mono"
+  if [[ -d "${mono_lib_dir}/4.5" && ! -e "${mono_lib_dir}/net_4_x-linux" ]]; then
+    ln -s 4.5 "${mono_lib_dir}/net_4_x-linux"
+  fi
+
+  # Some managed components P/Invoke System.Native directly.
+  # Provide compatibility soname links to mono-native for environments
+  # where dllmap resolution is not applied.
+  for native_lib_dir in "${install_root}/lib" "${install_root}/usr/lib"; do
+    if [[ -e "${native_lib_dir}/libmono-native.so" ]]; then
+      if [[ ! -e "${native_lib_dir}/libSystem.Native.so" ]]; then
+        ln -s libmono-native.so "${native_lib_dir}/libSystem.Native.so"
+      fi
+      if [[ ! -e "${native_lib_dir}/libSystem.Net.Security.Native.so" ]]; then
+        ln -s libmono-native.so "${native_lib_dir}/libSystem.Net.Security.Native.so"
+      fi
+    fi
+  done
+
+  if [[ "${DISABLE_MCS}" != "1" ]]; then
+    if [[ ! -f "${install_root}/lib/mono/net_4_x-linux/mscorlib.dll" ]]; then
+      echo "ERROR: Missing ${install_root}/lib/mono/net_4_x-linux/mscorlib.dll" >&2
+      echo "The produced runtime is incomplete for Linux xbuild/mcs execution." >&2
+      exit 3
+    fi
+  fi
+
+  if [[ ! -f "${install_root}/bin/xbuild" ]]; then
+    echo "ERROR: Missing ${install_root}/bin/xbuild" >&2
+    exit 3
+  fi
+
   echo "Full build + install complete."
   echo "Install prefix: ${INSTALL_PREFIX}"
   echo "Staged to: ${INSTALL_DESTDIR}"

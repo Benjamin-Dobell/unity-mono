@@ -8,6 +8,7 @@ IMAGE_TAG="${IMAGE_TAG:-unity-mono-linux-build:local}"
 QUICK=1
 INSTALL_PREFIX=""
 INSTALL_ROOT_PREFIX="/"
+CLEAN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -28,6 +29,14 @@ while [[ $# -gt 0 ]]; do
       INSTALL_ROOT_PREFIX="$2"
       shift 2
       ;;
+    --clean)
+      CLEAN=1
+      shift
+      ;;
+    --no-clean)
+      CLEAN=0
+      shift
+      ;;
     *)
       echo "Unknown argument: $1" >&2
       exit 2
@@ -46,6 +55,11 @@ echo "Building docker image: ${IMAGE_TAG}"
 docker build -f "${DOCKERFILE}" -t "${IMAGE_TAG}" .
 
 BUILD_CMD=(./scripts/build-linux.sh --jobs 4)
+if [[ "${CLEAN}" == "1" ]]; then
+  BUILD_CMD+=(--clean)
+else
+  BUILD_CMD+=(--no-clean)
+fi
 if [[ "${QUICK}" == "1" ]]; then
   BUILD_CMD+=(--quick)
 else
