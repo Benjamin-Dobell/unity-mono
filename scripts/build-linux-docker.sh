@@ -7,6 +7,7 @@ DOCKERFILE="${REPO_ROOT}/tools/docker/mono-linux-build.Dockerfile"
 IMAGE_TAG="${IMAGE_TAG:-unity-mono-linux-build:local}"
 QUICK=1
 INSTALL_PREFIX=""
+INSTALL_ROOT_PREFIX="/"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -21,6 +22,10 @@ while [[ $# -gt 0 ]]; do
     --install)
       QUICK=0
       INSTALL_PREFIX="$2"
+      shift 2
+      ;;
+    --install-prefix)
+      INSTALL_ROOT_PREFIX="$2"
       shift 2
       ;;
     *)
@@ -47,7 +52,7 @@ else
   if [[ -z "${INSTALL_PREFIX}" ]]; then
     INSTALL_PREFIX="/workspace/tmp-linux"
   fi
-  BUILD_CMD+=(--install "${INSTALL_PREFIX}")
+  BUILD_CMD+=(--install "${INSTALL_PREFIX}" --install-prefix "${INSTALL_ROOT_PREFIX}")
 fi
 
 echo "Running Linux build in docker (${BUILD_CMD[*]})"

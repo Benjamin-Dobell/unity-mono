@@ -74,9 +74,9 @@ jobs:
       - name: Build Unity Mono (Linux install)
         env:
           JOBS: ${{ github.event.inputs.jobs || '4' }}
-          PREFIX: ${{ github.workspace }}/artifacts/linux/install
+          DESTDIR: ${{ github.workspace }}/artifacts/linux/stage
         run: |
-          ./scripts/build-linux.sh --jobs "${JOBS}" --install "${PREFIX}"
+          ./scripts/build-linux.sh --jobs "${JOBS}" --install "${DESTDIR}" --install-prefix /
 
       - name: Package release assets
         id: package
@@ -84,7 +84,7 @@ jobs:
           BASE="${{ steps.meta.outputs.artifact_base }}"
           TAR="${BASE}.tar.gz"
           SHA="${BASE}.sha256"
-          tar -C "${{ github.workspace }}/artifacts/linux" -czf "${TAR}" install
+          tar -C "${{ github.workspace }}/artifacts/linux/stage" -czf "${TAR}" .
           sha256sum "${TAR}" > "${SHA}"
           echo "tar=${TAR}" >> "${GITHUB_OUTPUT}"
           echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"

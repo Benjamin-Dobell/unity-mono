@@ -56,13 +56,13 @@ jobs:
       - name: Build Unity Mono (Linux)
         env:
           JOBS: ${{ github.event.inputs.jobs || '4' }}
-          PREFIX: ${{ github.workspace }}/artifacts/linux/install
+          DESTDIR: ${{ github.workspace }}/artifacts/linux/stage
         run: |
-          ./scripts/build-linux.sh --jobs "${JOBS}" --install "${PREFIX}"
+          ./scripts/build-linux.sh --jobs "${JOBS}" --install "${DESTDIR}" --install-prefix /
 
       - name: Package artifacts
         run: |
-          tar -C "${{ github.workspace }}/artifacts/linux" -czf "${{ github.workspace }}/unity-mono-linux.tar.gz" install
+          tar -C "${{ github.workspace }}/artifacts/linux/stage" -czf "${{ github.workspace }}/unity-mono-linux.tar.gz" .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -70,6 +70,6 @@ jobs:
           name: unity-mono-linux-${{ github.sha }}
           path: |
             ${{ github.workspace }}/unity-mono-linux.tar.gz
-            ${{ github.workspace }}/artifacts/linux/install
+            ${{ github.workspace }}/artifacts/linux/stage
           if-no-files-found: error
           retention-days: 14

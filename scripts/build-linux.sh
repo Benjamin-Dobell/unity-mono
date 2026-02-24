@@ -7,7 +7,9 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 CONFIGURE_HOST="${CONFIGURE_HOST:-}"
 INSTALL=0
-PREFIX="${PREFIX:-}"
+INSTALL_DESTDIR="${INSTALL_DESTDIR:-${PREFIX:-}}"
+INSTALL_PREFIX="${INSTALL_PREFIX:-/}"
+DISABLE_MCS="${DISABLE_MCS:-0}"
 CLEAN=1
 
 while [[ $# -gt 0 ]]; do
@@ -18,8 +20,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     --full)
       INSTALL=1
-      if [[ -z "${PREFIX}" ]]; then
-        PREFIX="${REPO_ROOT}/tmp-linux"
+      if [[ -z "${INSTALL_DESTDIR}" ]]; then
+        INSTALL_DESTDIR="${REPO_ROOT}/tmp-linux"
       fi
       shift
       ;;
@@ -29,12 +31,15 @@ while [[ $# -gt 0 ]]; do
       ;;
     --install)
       INSTALL=1
-      PREFIX="$2"
+      INSTALL_DESTDIR="$2"
+      shift 2
+      ;;
+    --install-prefix)
+      INSTALL_PREFIX="$2"
       shift 2
       ;;
     --prefix)
-      INSTALL=1
-      PREFIX="$2"
+      INSTALL_PREFIX="$2"
       shift 2
       ;;
     --clean)
@@ -88,8 +93,10 @@ echo "Building Unity Mono (Linux)"
 echo "  JOBS=${JOBS}"
 echo "  INSTALL=${INSTALL}"
 if [[ "${INSTALL}" == "1" ]]; then
-  echo "  PREFIX=${PREFIX}"
+  echo "  INSTALL_DESTDIR=${INSTALL_DESTDIR}"
+  echo "  INSTALL_PREFIX=${INSTALL_PREFIX}"
 fi
+echo "  DISABLE_MCS=${DISABLE_MCS}"
 echo "  CLEAN=${CLEAN}"
 if [[ -n "${CONFIGURE_HOST}" ]]; then
   echo "  CONFIGURE_HOST=${CONFIGURE_HOST}"
@@ -97,8 +104,8 @@ else
   echo "  CONFIGURE_HOST=<not set>"
 fi
 
-if [[ "${INSTALL}" == "1" && -z "${PREFIX}" ]]; then
-  echo "Missing install prefix. Use --install <prefix>." >&2
+if [[ "${INSTALL}" == "1" && -z "${INSTALL_DESTDIR}" ]]; then
+  echo "Missing install directory. Use --install <destdir>." >&2
   exit 2
 fi
 
@@ -112,7 +119,6 @@ if [[ "${CLEAN}" == "1" ]]; then
 fi
 
 AUTOGEN_ARGS=(
-  --disable-mcs-build \
   --with-glib=embedded \
   --disable-nls \
   --with-mcs-docs=no \
@@ -127,8 +133,12 @@ AUTOGEN_ARGS=(
   --enable-verify-defines
 )
 
+if [[ "${DISABLE_MCS}" == "1" ]]; then
+  AUTOGEN_ARGS+=(--disable-mcs-build)
+fi
+
 if [[ "${INSTALL}" == "1" ]]; then
-  AUTOGEN_ARGS+=(--prefix="${PREFIX}")
+  AUTOGEN_ARGS+=(--prefix="${INSTALL_PREFIX}")
 fi
 
 if [[ -n "${CONFIGURE_HOST}" ]]; then
@@ -139,9 +149,10 @@ fi
 
 if [[ "${INSTALL}" == "1" ]]; then
   make -j"${JOBS}"
-  make install
+  make install DESTDIR="${INSTALL_DESTDIR}"
   echo "Full build + install complete."
-  echo "Installed prefix: ${PREFIX}"
+  echo "Install prefix: ${INSTALL_PREFIX}"
+  echo "Staged to: ${INSTALL_DESTDIR}"
 else
   make -j"${JOBS}" -C mono
   echo "Build complete (no install)."
